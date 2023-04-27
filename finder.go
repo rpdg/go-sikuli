@@ -6,16 +6,7 @@ import (
 	"image/color"
 )
 
-type IPoint struct {
-	X int
-	Y int
-}
-
-func DePoint(p IPoint) (x, y int) {
-	return p.X, p.Y
-}
-
-func Find(bigImg []byte, smallImg []byte, threshold float32) IPoint {
+func Find(bigImg []byte, smallImg []byte, threshold float32) image.Point {
 	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	defer smallMat.Close()
 
@@ -32,20 +23,22 @@ func Find(bigImg []byte, smallImg []byte, threshold float32) IPoint {
 	_, maxVal, _, maxLoc := gocv.MinMaxLoc(result)
 
 	if maxVal < threshold {
-		return IPoint{-1, -1}
+		return image.Point{X: -1, Y: -1}
 	}
 
 	w, h, _ := GetImageSize(smallImg)
-	p := IPoint{
+	p := image.Point{
 		X: maxLoc.X + w/2,
 		Y: maxLoc.Y + h/2,
 	}
 	return p
 }
 
-func FindAll(bigImg []byte, smallImg []byte, threshold float32) []IPoint {
+func FindAll(bigImg []byte, smallImg []byte, threshold float32) []image.Point {
 	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	defer smallMat.Close()
+
+	w, h, _ := GetImageSize(smallImg)
 
 	bigMat, _ := gocv.IMDecode(bigImg, gocv.IMReadAnyColor)
 	defer bigMat.Close()
@@ -57,21 +50,52 @@ func FindAll(bigImg []byte, smallImg []byte, threshold float32) []IPoint {
 	defer mask.Close()
 	gocv.MatchTemplate(bigMat, smallMat, &result, gocv.TmCcoeffNormed, mask)
 
-	var points []IPoint
+	var points []image.Point
 	for {
 		_, maxVal, _, maxLoc := gocv.MinMaxLoc(result)
 		if maxVal < threshold {
 			break
 		}
-		w, h, _ := GetImageSize(smallImg)
-		points = append(points, IPoint{
+
+		points = append(points, image.Point{
 			X: maxLoc.X + w/2,
 			Y: maxLoc.Y + h/2,
 		})
-		mask := gocv.NewMatWithSize(smallMat.Rows(), smallMat.Cols(), gocv.MatTypeCV8U)
+
+		// 在结果矩阵上绘制一个填充矩形，以便稍后不会再次检测到该匹配项
 		mask.SetTo(gocv.NewScalar(0, 0, 0, 0))
 		rect := image.Rect(maxLoc.X, maxLoc.Y, maxLoc.X+smallMat.Cols(), maxLoc.Y+smallMat.Rows())
-		gocv.Rectangle(&result, rect, color.RGBA{0, 0, 0, 0}, -1)
+		gocv.Rectangle(&result, rect, color.RGBA{}, -1)
 	}
-	return points
+
+	return filterPoints(points)
+}
+
+// filterPoints is a helper function that filters an array of image.Point by
+// removing any points which are within a 5 pixel distance from any other points.
+// It returns an array of distinct, filtered points.
+func filterPoints(points []image.Point) []image.Point {
+	filtered := make([]image.Point, 0, len(points))
+	for _, p1 := range points {
+		include := false
+		for j := 0; j < len(filtered); j++ {
+			p2 := filtered[j]
+			if abs(p1.X-p2.X) <= 5 && abs(p1.Y-p2.Y) <= 5 {
+				include = true
+				break
+			}
+		}
+		if !include {
+			filtered = append(filtered, p1)
+		}
+	}
+	return filtered
+}
+
+// abs is a helper function that returns the absolute value of an integer
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
