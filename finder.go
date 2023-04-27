@@ -7,6 +7,11 @@ import (
 )
 
 func Find(bigImg []byte, smallImg []byte, threshold float32) image.Point {
+	w, h, err := GetImageSize(smallImg)
+	if err != nil {
+		return image.Point{X: -1, Y: -1}
+	}
+
 	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	defer smallMat.Close()
 
@@ -26,7 +31,6 @@ func Find(bigImg []byte, smallImg []byte, threshold float32) image.Point {
 		return image.Point{X: -1, Y: -1}
 	}
 
-	w, h, _ := GetImageSize(smallImg)
 	p := image.Point{
 		X: maxLoc.X + w/2,
 		Y: maxLoc.Y + h/2,
@@ -35,10 +39,13 @@ func Find(bigImg []byte, smallImg []byte, threshold float32) image.Point {
 }
 
 func FindAll(bigImg []byte, smallImg []byte, threshold float32) []image.Point {
+	w, h, err := GetImageSize(smallImg)
+	if err != nil {
+		return nil
+	}
+
 	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	defer smallMat.Close()
-
-	w, h, _ := GetImageSize(smallImg)
 
 	bigMat, _ := gocv.IMDecode(bigImg, gocv.IMReadAnyColor)
 	defer bigMat.Close()
