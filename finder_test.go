@@ -10,7 +10,9 @@ func Test_FindImg(t *testing.T) {
 		big, _ := robotgo.OpenImg("C:\\tests\\big.png")
 		small, _ := robotgo.OpenImg("C:\\tests\\small.png")
 		p := Find(big, small, 0.9)
-		println(p.X, p.Y)
+		if p != nil {
+			println(p.X, p.Y)
+		}
 	})
 
 	t.Run("test find all", func(t *testing.T) {

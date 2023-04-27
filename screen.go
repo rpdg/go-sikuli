@@ -28,8 +28,8 @@ func WaitShow(target []byte, threshold float32, timeouts ...int) (x, y int, err 
 		i = timeouts[1]
 	}
 	scrByt := SnapByte()
-	p := Find(scrByt, target, 0.9)
-	if p.X < 0 || p.Y < 0 {
+	p := Find(scrByt, target, threshold)
+	if p == nil {
 		i++
 		if i < maxSecond*4 {
 			time.Sleep(time.Millisecond * 250)
@@ -51,8 +51,8 @@ func WaitHide(target []byte, threshold float32, timeouts ...int) error {
 		i = timeouts[1]
 	}
 	scrByt := SnapByte()
-	p := Find(scrByt, target, 0.8)
-	if p.X >= 0 && p.Y >= 0 {
+	p := Find(scrByt, target, threshold)
+	if p != nil {
 		i++
 		if i < maxSecond*4 {
 			time.Sleep(time.Millisecond * 250)

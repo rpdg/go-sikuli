@@ -6,10 +6,14 @@ import (
 	"image/color"
 )
 
-func Find(bigImg []byte, smallImg []byte, threshold float32) image.Point {
+// Find takes two images and a threshold as parameters and
+// finds the location of the small image within the larger image.
+// It returns a point which is the center of the small image in the larger image
+// if it can be found, or {-1,-1} if it cannot.
+func Find(bigImg []byte, smallImg []byte, threshold float32) *image.Point {
 	w, h, err := GetImageSize(smallImg)
 	if err != nil {
-		return image.Point{X: -1, Y: -1}
+		return nil
 	}
 
 	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
@@ -28,16 +32,20 @@ func Find(bigImg []byte, smallImg []byte, threshold float32) image.Point {
 	_, maxVal, _, maxLoc := gocv.MinMaxLoc(result)
 
 	if maxVal < threshold {
-		return image.Point{X: -1, Y: -1}
+		return nil
 	}
 
-	p := image.Point{
+	p := &image.Point{
 		X: maxLoc.X + w/2,
 		Y: maxLoc.Y + h/2,
 	}
 	return p
 }
 
+// FindAll is a function used to find all the instances of a small image
+// within a big image, up to a given threshold. It takes two byte slices for
+// the big and small images, and a float value for the threshold, and returns
+// a slice of image.Point instances for each instance found.
 func FindAll(bigImg []byte, smallImg []byte, threshold float32) []image.Point {
 	w, h, err := GetImageSize(smallImg)
 	if err != nil {

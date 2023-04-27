@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// Click performs a left mouse click at the given x and y coordinates.
+// If double is set to true, it will perform a double-click.
+// A random sleep time is added in between mouse down and mouse up actions
+// to ensure the actions are performed correctly.
 func Click(x, y int, double bool) {
 	robotgo.Move(x, y)
 	sleepRandomly(0.2, 0.5)
@@ -16,9 +20,12 @@ func Click(x, y int, double bool) {
 	sleepRandomly(0.2, 0.5)
 }
 
-// ClickImage clicks on screen according inputted image byte
+// ClickImage clicks on the given image within the screen.
+// If 'double' is true, it will be a double click. Otherwise it'll be a single click.
+// If an offset is given, it'll click at the x and y offset positions.
+// If the image isn't found, an error will be returned.
 func ClickImage(imgByte []byte, double bool, offset ...int) error {
-	x, y, err := WaitShow(imgByte, 0.8)
+	x, y, err := WaitShow(imgByte, 0.88)
 	if err != nil {
 		return err
 	}
