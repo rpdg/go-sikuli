@@ -21,11 +21,11 @@ func Click(x, y int, double bool) {
 }
 
 // ClickImage clicks on the given image within the screen.
-// If 'double' is true, it will be a double click. Otherwise it'll be a single click.
+// If 'double' is true, it will be a double click. Otherwise, it'll be a single click.
 // If an offset is given, it'll click at the x and y offset positions.
 // If the image isn't found, an error will be returned.
-func ClickImage(imgByte []byte, double bool, offset ...int) error {
-	x, y, err := WaitShow(imgByte, 0.88)
+func ClickImage(imgByte []byte, double bool, humanlike bool, offset ...int) error {
+	x, y, err := WaitShow(imgByte, 0.8)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,12 @@ func ClickImage(imgByte []byte, double bool, offset ...int) error {
 			y = y + offset[1]
 		}
 	}
-	Click(x, y, double)
+	if humanlike {
+		HumanClick(x, y, double)
+	} else {
+		Click(x, y, double)
+	}
+
 	return nil
 }
 
@@ -55,29 +60,36 @@ func HumanClick(x, y int, double bool) {
 
 func performRandomisedClick(double bool) {
 	_ = robotgo.Toggle("left", "down")
-	sleepRandomly(0.1, 0.3)
+	sleepRandomly(0.1, 0.2)
 	_ = robotgo.Toggle("left", "up")
 	if double {
-		sleepRandomly(0.2, 0.4)
+		sleepRandomly(0.2, 0.3)
 		_ = robotgo.Toggle("left", "down")
 		sleepRandomly(0.1, 0.3)
 		_ = robotgo.Toggle("left", "up")
 	}
 }
+
 func moveMouseRandomlyWithinBox(x, y, w, h float64) {
 	randomX := generateRandomNumber(x, x+w)
 	randomY := generateRandomNumber(y, y+h)
 
-	robotgo.Move(int(math.Round(randomX)), int(math.Round(randomY)))
+	robotgo.MoveSmooth(int(math.Round(randomX)), int(math.Round(randomY)), 0.2, 1.1, 1)
 }
+
 func sleepRandomly(min, max float64) {
 	n := generateRandomNumber(min, max)
 	time.Sleep(time.Duration(n) * time.Second)
 }
-func generateRandomNumber(min float64, max float64) float64 {
-	rand.Seed(time.Now().UnixNano())
-	randNum := (rand.Float64() * (max - min)) + min
+
+type Number interface {
+	float64 | float32 | int | int32 | int64
+}
+
+func generateRandomNumber[T Number](min T, max T) T {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	randNum := (rand.Float64() * (float64(max) - float64(min))) + float64(min)
 
 	// Trims to two decimal places. Doesn't need to be perfect.
-	return math.Floor(randNum*100) / 100
+	return T(math.Floor(float64(randNum)*100) / 100)
 }

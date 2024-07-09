@@ -1,6 +1,7 @@
 package go_sikuli
 
 import (
+	"fmt"
 	"gocv.io/x/gocv"
 	"image"
 	"image/color"
@@ -113,4 +114,53 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// FindSIFT takes two images as parameters and finds the location of the small image
+// within the larger image using SIFT feature matching.
+// It returns a point which is the center of the small image in the larger image
+// if it can be found, or {-1,-1} if it cannot.
+func FindSIFT(bigImg []byte, smallImg []byte) (*image.Point, error) {
+	w, h, err := GetImageSize(smallImg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get small image size: %w", err)
+	}
+
+	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
+	defer smallMat.Close()
+
+	bigMat, _ := gocv.IMDecode(bigImg, gocv.IMReadAnyColor)
+	defer bigMat.Close()
+
+	// 初始化gocv的SIFT检测器，并用它来找到图像中的关键点和描述符
+	sift := gocv.NewSIFT()
+	defer sift.Close()
+	_, descriptors1 := sift.DetectAndCompute(smallMat, gocv.NewMat())
+	keypoints2, descriptors2 := sift.DetectAndCompute(bigMat, gocv.NewMat())
+
+	// 创建一个BFMatcher对象，使用gocv.NormL2作为距离度量
+	matcher := gocv.NewBFMatcherWithParams(gocv.NormL2, false)
+	defer matcher.Close()
+
+	// 使用BFMatcher.KnnMatch()方法来匹配两个图像中的描述符，并根据距离排序
+	matches := matcher.KnnMatch(descriptors1, descriptors2, 2)
+
+	// 使用阈值来过滤掉不好的匹配，或者使用Lowe的比率测试来过滤掉不好的匹配
+	var goodMatches []gocv.DMatch
+	for _, m := range matches {
+		if len(m) >= 2 {
+			if m[0].Distance < 0.75*m[1].Distance {
+				goodMatches = append(goodMatches, m[0])
+			}
+		}
+
+	}
+
+	// 返回匹配点对中的第一个点作为image.Point
+	if len(goodMatches) > 0 {
+		p := keypoints2[goodMatches[0].QueryIdx]
+		return &image.Point{X: int(p.X) + w/2, Y: int(p.Y) + h/2}, nil
+	} else {
+		return nil, fmt.Errorf("not enough good matches")
+	}
 }
