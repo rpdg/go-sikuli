@@ -108,14 +108,6 @@ func filterPoints(points []image.Point) []image.Point {
 	return filtered
 }
 
-// abs is a helper function that returns the absolute value of an integer
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 // FindSIFT takes two images as parameters and finds the location of the small image
 // within the larger image using SIFT feature matching.
 // It returns a point which is the center of the small image in the larger image

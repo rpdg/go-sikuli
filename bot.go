@@ -3,8 +3,6 @@ package go_sikuli
 import (
 	"errors"
 	"github.com/go-vgo/robotgo"
-	"math"
-	"math/rand"
 	"time"
 )
 
@@ -20,44 +18,6 @@ func Click(x, y int, double bool) {
 	sleepRandomly(0.2, 0.5)
 }
 
-// ClickImage clicks on the given image within the screen.
-// If 'double' is true, it will be a double click. Otherwise, it'll be a single click.
-// If an offset is given, it'll click at the x and y offset positions.
-// If the image isn't found, an error will be returned.
-func ClickImage(imgByte []byte, double bool, humanlike bool, offset ...int) error {
-	x, y, err := WaitShow(imgByte, 0.8)
-	if err != nil {
-		return err
-	}
-
-	if x < 0 || y < 0 {
-		return errors.New("cant find target")
-	}
-
-	if len(offset) > 0 {
-		x = x + offset[0]
-		if len(offset) > 1 {
-			y = y + offset[1]
-		}
-	}
-	if humanlike {
-		HumanClick(x, y, double)
-	} else {
-		Click(x, y, double)
-	}
-
-	return nil
-}
-
-// HumanClick simulate human click
-func HumanClick(x, y int, double bool) {
-	sleepRandomly(0.2, 0.5)
-	moveMouseRandomlyWithinBox(float64(x), float64(y), 3, 3)
-	sleepRandomly(0.2, 0.5)
-	performRandomisedClick(double)
-	_ = robotgo.MouseUp()
-}
-
 func performRandomisedClick(double bool) {
 	_ = robotgo.Toggle("left", "down")
 	sleepRandomly(0.1, 0.2)
@@ -70,26 +30,63 @@ func performRandomisedClick(double bool) {
 	}
 }
 
-func moveMouseRandomlyWithinBox(x, y, w, h float64) {
-	randomX := generateRandomNumber(x, x+w)
-	randomY := generateRandomNumber(y, y+h)
+// HumanClick simulate human click
+func HumanClick(x, y, bW, bH int, double bool) {
+	sleepRandomly(0.1, 0.3)
+	if bW < 0 {
+		bW = 0
+	}
+	if bH < 0 {
+		bH = 0
+	}
+	moveMouseRandomlyWithinBox(x, y, bW, bH)
+	sleepRandomly(0.1, 0.3)
+	performRandomisedClick(double)
+	_ = robotgo.MouseUp()
+}
 
-	robotgo.MoveSmooth(int(math.Round(randomX)), int(math.Round(randomY)), 0.2, 1.1, 1)
+// ClickImage clicks on the given image within the screen.
+// If 'double' is true, it will be a double click. Otherwise, it'll be a single click.
+// If an offset is given, it'll click at the x and y offset positions.
+// If the image isn't found, an error will be returned.
+func ClickImage(imgByte []byte, double bool, humanlike bool, offsets ...int) error {
+	img, err := robotgo.ByteToImg(imgByte)
+	if err != nil {
+		return err
+	}
+	imgW, imgH := img.Bounds().Dx(), img.Bounds().Dy()
+
+	x, y, err := WaitShow(imgByte, 0.8)
+	if err != nil {
+		return err
+	}
+	if x < 0 || y < 0 {
+		return errors.New("can't find target")
+	}
+
+	if len(offsets) > 0 {
+		x = x + offsets[0]
+	}
+	if len(offsets) > 1 {
+		y = y + offsets[1]
+	}
+
+	if humanlike {
+		HumanClick(x, y, imgW/2-4, imgH/2-4, double)
+	} else {
+		Click(x, y, double)
+	}
+
+	return nil
+}
+
+func moveMouseRandomlyWithinBox(x, y, w, h int) {
+	randomX := generateRandomNumber(x-w, x+w)
+	randomY := generateRandomNumber(y-h, y+h)
+	robotgo.MoveSmooth(randomX, randomY, 0.2, 1.1, 1)
 }
 
 func sleepRandomly(min, max float64) {
 	n := generateRandomNumber(min, max)
 	time.Sleep(time.Duration(n) * time.Second)
-}
-
-type Number interface {
-	float64 | float32 | int | int32 | int64
-}
-
-func generateRandomNumber[T Number](min T, max T) T {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	randNum := (rand.Float64() * (float64(max) - float64(min))) + float64(min)
-
-	// Trims to two decimal places. Doesn't need to be perfect.
-	return T(math.Floor(float64(randNum)*100) / 100)
 }
