@@ -3,18 +3,11 @@ package go_sikuli
 import (
 	"errors"
 	"github.com/go-vgo/robotgo"
-	"image"
 	"time"
 )
 
-func Snap() image.Image {
-	screenBmp := robotgo.CaptureScreen()
-	defer robotgo.FreeBitmap(screenBmp)
-	return robotgo.ToImage(screenBmp)
-}
-
-func SnapByte() []byte {
-	scrImg := Snap()
+func ScreenShotByte() []byte {
+	scrImg := robotgo.CaptureImg()
 	return ImageToByte(scrImg)
 }
 
@@ -27,7 +20,7 @@ func WaitShow(target []byte, threshold float32, timeouts ...int) (x, y int, err 
 	if len(timeouts) > 1 {
 		i = timeouts[1]
 	}
-	scrByt := SnapByte()
+	scrByt := ScreenShotByte()
 	p := Find(scrByt, target, threshold)
 	if p == nil {
 		i++
@@ -50,7 +43,7 @@ func WaitHide(target []byte, threshold float32, timeouts ...int) error {
 	if len(timeouts) > 1 {
 		i = timeouts[1]
 	}
-	scrByt := SnapByte()
+	scrByt := ScreenShotByte()
 	p := Find(scrByt, target, threshold)
 	if p != nil {
 		i++

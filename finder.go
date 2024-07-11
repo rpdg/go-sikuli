@@ -12,15 +12,16 @@ import (
 // It returns a point which is the center of the small image in the larger image
 // if it can be found, or {-1,-1} if it cannot.
 func Find(bigImg []byte, smallImg []byte, threshold float32) *image.Point {
-	w, h, err := GetImageSize(smallImg)
+	smallMat, err := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	if err != nil {
 		return nil
 	}
-
-	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	defer smallMat.Close()
 
-	bigMat, _ := gocv.IMDecode(bigImg, gocv.IMReadAnyColor)
+	bigMat, err := gocv.IMDecode(bigImg, gocv.IMReadAnyColor)
+	if err != nil {
+		return nil
+	}
 	defer bigMat.Close()
 
 	result := gocv.NewMat()
@@ -36,6 +37,7 @@ func Find(bigImg []byte, smallImg []byte, threshold float32) *image.Point {
 		return nil
 	}
 
+	w, h := smallMat.Cols(), smallMat.Rows()
 	p := &image.Point{
 		X: maxLoc.X + w/2,
 		Y: maxLoc.Y + h/2,
@@ -64,6 +66,7 @@ func FindAll(bigImg []byte, smallImg []byte, threshold float32) []image.Point {
 
 	mask := gocv.NewMat()
 	defer mask.Close()
+
 	gocv.MatchTemplate(bigMat, smallMat, &result, gocv.TmCcoeffNormed, mask)
 
 	var points []image.Point
@@ -78,7 +81,7 @@ func FindAll(bigImg []byte, smallImg []byte, threshold float32) []image.Point {
 			Y: maxLoc.Y + h/2,
 		})
 
-		// 在结果矩阵上绘制一个填充矩形，以便稍后不会再次检测到该匹配项
+		// Draw a filled rectangle on the result matrix to avoid detecting the same match again
 		mask.SetTo(gocv.NewScalar(0, 0, 0, 0))
 		rect := image.Rect(maxLoc.X, maxLoc.Y, maxLoc.X+smallMat.Cols(), maxLoc.Y+smallMat.Rows())
 		gocv.Rectangle(&result, rect, color.RGBA{}, -1)
@@ -113,22 +116,28 @@ func filterPoints(points []image.Point) []image.Point {
 // It returns a point which is the center of the small image in the larger image
 // if it can be found, or {-1,-1} if it cannot.
 func FindSIFT(bigImg []byte, smallImg []byte) (*image.Point, error) {
-	w, h, err := GetImageSize(smallImg)
+	smallMat, err := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get small image size: %w", err)
+		return nil, err
 	}
-
-	smallMat, _ := gocv.IMDecode(smallImg, gocv.IMReadAnyColor)
 	defer smallMat.Close()
 
-	bigMat, _ := gocv.IMDecode(bigImg, gocv.IMReadAnyColor)
+	bigMat, err := gocv.IMDecode(bigImg, gocv.IMReadAnyColor)
+	if err != nil {
+		return nil, err
+	}
 	defer bigMat.Close()
 
 	// 初始化gocv的SIFT检测器，并用它来找到图像中的关键点和描述符
 	sift := gocv.NewSIFT()
 	defer sift.Close()
-	_, descriptors1 := sift.DetectAndCompute(smallMat, gocv.NewMat())
-	keypoints2, descriptors2 := sift.DetectAndCompute(bigMat, gocv.NewMat())
+
+	mask1 := gocv.NewMat()
+	defer mask1.Close()
+	_, descriptors1 := sift.DetectAndCompute(smallMat, mask1)
+	mask2 := gocv.NewMat()
+	defer mask2.Close()
+	keypoints2, descriptors2 := sift.DetectAndCompute(bigMat, mask2)
 
 	// 创建一个BFMatcher对象，使用gocv.NormL2作为距离度量
 	matcher := gocv.NewBFMatcherWithParams(gocv.NormL2, false)
@@ -140,10 +149,8 @@ func FindSIFT(bigImg []byte, smallImg []byte) (*image.Point, error) {
 	// 使用阈值来过滤掉不好的匹配，或者使用Lowe的比率测试来过滤掉不好的匹配
 	var goodMatches []gocv.DMatch
 	for _, m := range matches {
-		if len(m) >= 2 {
-			if m[0].Distance < 0.75*m[1].Distance {
-				goodMatches = append(goodMatches, m[0])
-			}
+		if len(m) >= 2 && m[0].Distance < 0.75*m[1].Distance {
+			goodMatches = append(goodMatches, m[0])
 		}
 
 	}
@@ -151,7 +158,7 @@ func FindSIFT(bigImg []byte, smallImg []byte) (*image.Point, error) {
 	// 返回匹配点对中的第一个点作为image.Point
 	if len(goodMatches) > 0 {
 		p := keypoints2[goodMatches[0].QueryIdx]
-		return &image.Point{X: int(p.X) + w/2, Y: int(p.Y) + h/2}, nil
+		return &image.Point{X: int(p.X) + smallMat.Cols()/2, Y: int(p.Y) + smallMat.Rows()/2}, nil
 	} else {
 		return nil, fmt.Errorf("not enough good matches")
 	}

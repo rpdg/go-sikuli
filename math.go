@@ -19,7 +19,7 @@ func generateRandomNumber[T Number](min T, max T) T {
 }
 
 // abs is a helper function that returns the absolute value of an integer
-func abs(x int) int {
+func abs[T Number](x T) T {
 	if x < 0 {
 		return -x
 	}

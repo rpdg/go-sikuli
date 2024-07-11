@@ -50,12 +50,6 @@ func HumanClick(x, y, bW, bH int, double bool) {
 // If an offset is given, it'll click at the x and y offset positions.
 // If the image isn't found, an error will be returned.
 func ClickImage(imgByte []byte, double bool, humanlike bool, offsets ...int) error {
-	img, err := robotgo.ByteToImg(imgByte)
-	if err != nil {
-		return err
-	}
-	imgW, imgH := img.Bounds().Dx(), img.Bounds().Dy()
-
 	x, y, err := WaitShow(imgByte, 0.8)
 	if err != nil {
 		return err
@@ -72,6 +66,10 @@ func ClickImage(imgByte []byte, double bool, humanlike bool, offsets ...int) err
 	}
 
 	if humanlike {
+		imgW, imgH, err2 := GetImageSize(imgByte)
+		if err2 != nil {
+			return err2
+		}
 		HumanClick(x, y, imgW/2-4, imgH/2-4, double)
 	} else {
 		Click(x, y, double)
